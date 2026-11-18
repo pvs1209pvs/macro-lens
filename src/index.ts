@@ -195,7 +195,7 @@ async function getValidFatSecretToken(): Promise<string> {
 
   // 2. Otherwise fetch a fresh token through Fixie
   const credentials = Buffer.from(
-    `${process.env.FATSECRET_CLIENT_ID}:${process.env.FATSECRET_CLIENT_SECRET}`
+    `${clientID}:${clientSecret}`
   ).toString('base64');
 
   const response = await fetch('https://oauth.fatsecret.com/connect/token', {
