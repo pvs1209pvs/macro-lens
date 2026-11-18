@@ -1,13 +1,15 @@
 import 'dotenv/config'
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { ProxyAgent } from 'undici';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const proxyDispatcher = process.env.FIXIE_URL
-  ? new ProxyAgent(process.env.FIXIE_URL.trim())
-  : undefined;
+
+if (process.env.FIXIE_URL) {
+  const proxyDispatcher = new ProxyAgent(process.env.FIXIE_URL.trim());
+  setGlobalDispatcher(proxyDispatcher);
+}
 
 const clientID = process.env.FATSECRET_CLIENT_ID?.trim()!;
 const clientSecret = process.env.FATSECRET_CLIENT_SECRET?.trim()!;
@@ -63,8 +65,6 @@ app.get('/api/recipes/search', async (req: Request, res: Response) => {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-        // @ts-expect-error Node's native fetch accepts undici's dispatcher at runtime
-        dispatcher: proxyDispatcher,
       }
     );
 
@@ -116,8 +116,6 @@ app.get('/api/foods/search', async (req: Request, res: Response) => {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        // @ts-expect-error Node's native fetch accepts undici's dispatcher at runtime
-        dispatcher: proxyDispatcher,
       }
     );
 
@@ -142,10 +140,7 @@ app.get('/api/foods/search', async (req: Request, res: Response) => {
 
 app.get('/debug-ip', async (_req: Request, res: Response) => {
   try {
-    const response = await fetch('https://api.ipify.org?format=json', {
-      // @ts-expect-error Node's native fetch accepts undici's dispatcher at runtime
-      dispatcher: proxyDispatcher,
-    });
+    const response = await fetch('https://api.ipify.org?format=json');
 
     if (!response.ok) {
       res
@@ -160,7 +155,7 @@ app.get('/debug-ip', async (_req: Request, res: Response) => {
 
     res.json({
       outboundIp: data.ip,
-      proxyConfigured: Boolean(proxyDispatcher),
+      proxyConfigured: Boolean(process.env.FIXIE_URL),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -181,12 +176,10 @@ app.listen(PORT, () => {
 });
 
 async function getValidFatSecretToken(): Promise<string> {
-  // 1. Return cached token if it exists and has more than 5 minutes of life left
   if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
     return fatSecretTokenCache.accessToken;
   }
 
-  // 2. Otherwise fetch a fresh token through Fixie
   const credentials = Buffer.from(
     `${clientID}:${clientSecret}`
   ).toString('base64');
@@ -201,8 +194,6 @@ async function getValidFatSecretToken(): Promise<string> {
       grant_type: 'client_credentials',
       scope: 'basic',
     }),
-    // @ts-expect-error Node's native fetch accepts undici's dispatcher at runtime
-    dispatcher: proxyDispatcher,
   });
 
   if (!response.ok) {
@@ -216,7 +207,6 @@ async function getValidFatSecretToken(): Promise<string> {
     token_type: string;
   };
 
-  // 3. Save to memory with a 5-minute safety buffer before actual expiry
   fatSecretTokenCache = {
     accessToken: data.access_token,
     expiresAt: Date.now() + (data.expires_in - 300) * 1000,
