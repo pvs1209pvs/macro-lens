@@ -202,6 +202,7 @@ async function getValidFatSecretToken(): Promise<string> {
     method: 'POST',
     headers: {
       Authorization: `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
       grant_type: 'client_credentials',
