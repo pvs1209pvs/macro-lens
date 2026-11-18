@@ -6,14 +6,12 @@ import { ProxyAgent } from 'undici';
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-
 const proxyDispatcher = process.env.FIXIE_URL
-  ? new ProxyAgent(process.env.FIXIE_URL)
+  ? new ProxyAgent(process.env.FIXIE_URL.trim())
   : undefined;
 
-const clientID = process.env.FATSECRET_CLIENT_ID!;
-const clientSecret = process.env.FATSECRET_CLIENT_SECRET!;
-
+const clientID = process.env.FATSECRET_CLIENT_ID?.trim()!;
+const clientSecret = process.env.FATSECRET_CLIENT_SECRET?.trim()!;
 
 interface CachedToken {
   accessToken: string;
@@ -32,7 +30,7 @@ app.get('/api', (_req: Request, res: Response<String>) => {
 app.get('/api/recipes/search', async (req: Request, res: Response) => {
   try {
     const accessToken = await getValidFatSecretToken();
-
+    console.log("tokenn found for recipe api");
     const {
       search_expression,
       recipe_types,
