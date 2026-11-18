@@ -117,6 +117,7 @@ app.get('/api/foods/search', async (req: Request, res: Response) => {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         // @ts-expect-error Node's native fetch accepts undici's dispatcher at runtime
         dispatcher: proxyDispatcher,
