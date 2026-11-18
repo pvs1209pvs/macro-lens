@@ -1,6 +1,5 @@
 import 'dotenv/config'
 import express, { type Request, type Response, type NextFunction } from 'express';
-import axios, { AxiosError } from 'axios';
 import { ProxyAgent } from 'undici';
 
 const app = express();
@@ -30,7 +29,7 @@ app.get('/api', (_req: Request, res: Response<String>) => {
 app.get('/api/recipes/search', async (req: Request, res: Response) => {
   try {
     const accessToken = await getValidFatSecretToken();
-    console.log("tokenn found for recipe api");
+    console.log("token found for recipe api");
     const {
       search_expression,
       recipe_types,
@@ -87,7 +86,7 @@ app.get('/api/recipes/search', async (req: Request, res: Response) => {
       details: message,
     });
   }
-});;
+});
 
 app.get('/api/foods/search', async (req: Request, res: Response) => {
   const query = req.query.q as string;
@@ -181,11 +180,6 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
-interface CachedToken {
-  accessToken: string;
-  expiresAt: number; // Unix timestamp in milliseconds
-}
-
 async function getValidFatSecretToken(): Promise<string> {
   // 1. Return cached token if it exists and has more than 5 minutes of life left
   if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
@@ -212,16 +206,17 @@ async function getValidFatSecretToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`OAuth failed (${response.status}): ${await response.text()}`);
+    const errorBody = await response.text();
+    throw new Error(`OAuth failed (${response.status}): ${errorBody}`);
   }
 
   const data = (await response.json()) as {
     access_token: string;
-    expires_in: number; // 86400 seconds (24 hours)
+    expires_in: number;
     token_type: string;
   };
 
-  // 3. Save to memory with a 5-minute (300,000 ms) safety buffer before actual expiry
+  // 3. Save to memory with a 5-minute safety buffer before actual expiry
   fatSecretTokenCache = {
     accessToken: data.access_token,
     expiresAt: Date.now() + (data.expires_in - 300) * 1000,
