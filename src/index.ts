@@ -31,7 +31,7 @@ let fatSecretTokenCache: CachedToken | null = null;
 const fatSecretClient = axios.create({
   baseURL: "https://platform.fatsecret.com",
   timeout: 10000,
-  httpAgent: fixieAgent,
+  httpsAgent: fixieAgent,
   proxy:false
 });
 
@@ -41,47 +41,64 @@ app.get('/api', (_req: Request, res: Response<String>) => {
   res.json("Hello world");
 });
 
-const refreshFatSecretToken = async (req: Request, res: Response, next: NextFunction) => {
+const refreshFatSecretToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
+      next();
+      return;
+    }
 
-  if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
-    next();
-  }
+    const credentials = Buffer.from(`${clientID}:${clientSecret}`).toString('base64');
 
-  const credentials = Buffer.from(
-    `${clientID}:${clientSecret}`
-  ).toString('base64');
-
-  const response = await fetch('https://oauth.fatsecret.com/connect/token', {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
+    const body = new URLSearchParams({
       grant_type: 'client_credentials',
       scope: 'basic',
-    }),
-  });
+    });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`OAuth failed (${response.status}): ${errorBody}`);
+    const response = await axios.post(
+      'https://oauth.fatsecret.com/connect/token',
+      body.toString(),
+      {
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        httpsAgent: fixieAgent,
+        proxy: false,
+        timeout: 10000,
+      }
+    );
+
+    const data = response.data as {
+      access_token: string;
+      expires_in: number;
+      token_type: string;
+    };
+
+    fatSecretTokenCache = {
+      accessToken: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 300) * 1000,
+    };
+
+    next();
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 502;
+      const details = error.response?.data ?? error.message;
+      res.status(status).json({
+        error: 'FatSecret OAuth failed',
+        details,
+      });
+      return;
+    }
+
+    next(error);
   }
-
-  const data = (await response.json()) as {
-    access_token: string;
-    expires_in: number;
-    token_type: string;
-  };
-
-  fatSecretTokenCache = {
-    accessToken: data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 300) * 1000,
-  };
-
-  next();
-
-}
+};
 
 // REST Endpoint Wrapper for Recipe Search v3
 app.get('/api/recipes/search', refreshFatSecretToken, async (req: Request, res: Response) => {
