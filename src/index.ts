@@ -27,11 +27,51 @@ app.get('/api', (_req: Request, res: Response<String>) => {
   res.json("Hello world");
 });
 
+const refreshFatSecretToken = async (req: Request, res: Response, next: NextFunction) => {
+
+  if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
+    return fatSecretTokenCache.accessToken;
+  }
+
+  const credentials = Buffer.from(
+    `${clientID}:${clientSecret}`
+  ).toString('base64');
+
+  const response = await fetch('https://oauth.fatsecret.com/connect/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'basic',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`OAuth failed (${response.status}): ${errorBody}`);
+  }
+
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in: number;
+    token_type: string;
+  };
+
+  fatSecretTokenCache = {
+    accessToken: data.access_token,
+    expiresAt: Date.now() + (data.expires_in - 300) * 1000,
+  };
+
+  next();
+
+}
+
 // REST Endpoint Wrapper for Recipe Search v3
-app.get('/api/recipes/search', async (req: Request, res: Response) => {
+app.get('/api/recipes/search', refreshFatSecretToken, async (req: Request, res: Response) => {
   try {
-    const accessToken = await getValidFatSecretToken();
-    console.log("token found for recipe api");
     const {
       search_expression,
       recipe_types,
@@ -63,7 +103,7 @@ app.get('/api/recipes/search', async (req: Request, res: Response) => {
       {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${fatSecretTokenCache?.accessToken}`,
         },
       }
     );
@@ -99,7 +139,6 @@ app.get('/api/foods/search', async (req: Request, res: Response) => {
   }
 
   try {
-    const token = await getValidFatSecretToken();
 
     const params = new URLSearchParams({
       search_expression: query,
@@ -113,7 +152,7 @@ app.get('/api/foods/search', async (req: Request, res: Response) => {
       {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${fatSecretTokenCache!.accessToken}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       }
@@ -175,42 +214,42 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
-async function getValidFatSecretToken(): Promise<string> {
-  if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
-    return fatSecretTokenCache.accessToken;
-  }
+// async function getValidFatSecretToken(): Promise<string> {
+//   if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
+//     return fatSecretTokenCache.accessToken;
+//   }
 
-  const credentials = Buffer.from(
-    `${clientID}:${clientSecret}`
-  ).toString('base64');
+//   const credentials = Buffer.from(
+//     `${clientID}:${clientSecret}`
+//   ).toString('base64');
 
-  const response = await fetch('https://oauth.fatsecret.com/connect/token', {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      scope: 'basic',
-    }),
-  });
+//   const response = await fetch('https://oauth.fatsecret.com/connect/token', {
+//     method: 'POST',
+//     headers: {
+//       Authorization: `Basic ${credentials}`,
+//       'Content-Type': 'application/x-www-form-urlencoded',
+//     },
+//     body: new URLSearchParams({
+//       grant_type: 'client_credentials',
+//       scope: 'basic',
+//     }),
+//   });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`OAuth failed (${response.status}): ${errorBody}`);
-  }
+//   if (!response.ok) {
+//     const errorBody = await response.text();
+//     throw new Error(`OAuth failed (${response.status}): ${errorBody}`);
+//   }
 
-  const data = (await response.json()) as {
-    access_token: string;
-    expires_in: number;
-    token_type: string;
-  };
+//   const data = (await response.json()) as {
+//     access_token: string;
+//     expires_in: number;
+//     token_type: string;
+//   };
 
-  fatSecretTokenCache = {
-    accessToken: data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 300) * 1000,
-  };
+//   fatSecretTokenCache = {
+//     accessToken: data.access_token,
+//     expiresAt: Date.now() + (data.expires_in - 300) * 1000,
+//   };
 
-  return fatSecretTokenCache.accessToken;
-}
+//   return fatSecretTokenCache.accessToken;
+// }
