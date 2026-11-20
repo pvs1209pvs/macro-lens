@@ -1,19 +1,24 @@
 import axios from 'axios';
 import 'dotenv/config'
 import express, { type Request, type Response, type NextFunction } from 'express';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-if (process.env.FIXIE_URL) {
-  const proxyDispatcher = new ProxyAgent(process.env.FIXIE_URL.trim());
-  setGlobalDispatcher(proxyDispatcher);
-}
+// if (process.env.FIXIE_URL) {
+//   const proxyDispatcher = new ProxyAgent(process.env.FIXIE_URL.trim());
+//   setGlobalDispatcher(proxyDispatcher);
+// }
 
 const clientID = process.env.FATSECRET_CLIENT_ID?.trim()!;
 const clientSecret = process.env.FATSECRET_CLIENT_SECRET?.trim()!;
+
+const fixieAgent = process.env.FIXIE_URL
+  ? new HttpsProxyAgent(process.env.FIXIE_URL.trim())
+  : undefined;
 
 interface CachedToken {
   accessToken: string;
@@ -25,7 +30,9 @@ let fatSecretTokenCache: CachedToken | null = null;
 
 const fatSecretClient = axios.create({
   baseURL: "https://platform.fatsecret.com",
-  timeout: 10000
+  timeout: 10000,
+  httpAgent: fixieAgent,
+  proxy:false
 });
 
 app.use(express.json());
@@ -37,7 +44,7 @@ app.get('/api', (_req: Request, res: Response<String>) => {
 const refreshFatSecretToken = async (req: Request, res: Response, next: NextFunction) => {
 
   if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
-    return fatSecretTokenCache.accessToken;
+    next();
   }
 
   const credentials = Buffer.from(
