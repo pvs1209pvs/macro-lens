@@ -1,3 +1,4 @@
+import axios from 'axios';
 import 'dotenv/config'
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
@@ -20,6 +21,12 @@ interface CachedToken {
 }
 
 let fatSecretTokenCache: CachedToken | null = null;
+
+
+const fatSecretClient = axios.create({
+  baseURL: "https://platform.fatsecret.com",
+  timeout: 10000
+});
 
 app.use(express.json());
 
@@ -87,37 +94,63 @@ app.get('/api/recipes/search', refreshFatSecretToken, async (req: Request, res: 
       return;
     }
 
-    const params = new URLSearchParams({
-      format: 'json',
-      search_expression: search_expression as string,
-      ...(recipe_types && { recipe_types: recipe_types as string }),
-      ...(recipe_types_matchall && { recipe_types_matchall: recipe_types_matchall as string }),
-      ...(must_have_images && { must_have_images: must_have_images as string }),
-      ...(page_number && { page_number: page_number as string }),
-      ...(max_results && { max_results: max_results as string }),
-      ...(sort_by && { sort_by: sort_by as string }),
+    const response = await fatSecretClient.get("/rest/recipes/search/v3", {
+      headers: {
+        Authorization: `Bearer ${fatSecretTokenCache?.accessToken}`,
+      },
+      params: {
+        format: 'json',
+        search_expression,
+        recipe_types,
+        recipe_types_matchall,
+        must_have_images,
+        page_number,
+        max_results,
+        sort_by,
+      }
     });
 
-    const response = await fetch(
-      `https://platform.fatsecret.com/rest/recipes/search/v3?${params.toString()}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${fatSecretTokenCache?.accessToken}`,
-        },
-      }
-    );
 
-    if (!response.ok) {
+    if (response.status != 200) {
       res.status(response.status).json({
         error: `FatSecret API error: ${response.status}`,
-        details: await response.text(),
       });
       return;
     }
 
-    const data = await response.json();
-    res.json(data);
+
+    const data = response.data;
+
+    // Helper to normalize FatSecret's "object when 1 item, array when >1" quirk
+    const toArray = <T>(value: T | T[] | undefined): T[] => {
+      if (!value) return [];
+      return Array.isArray(value) ? value : [value];
+    };
+
+    const rawRecipes = toArray(data?.recipes?.recipe);
+
+    const recipes = rawRecipes.map((item) => ({
+      id: item.recipe_id,
+      name: item.recipe_name,
+      description: item.recipe_description ?? '',
+      image: item.recipe_image ?? null,
+      ingredients: toArray(item.recipe_ingredients?.ingredient),
+      types: toArray(item.recipe_types?.recipe_type),
+      nutrition: {
+        calories: Number(item.recipe_nutrition?.calories ?? 0),
+        protein: Number(item.recipe_nutrition?.protein ?? 0),
+        carbs: Number(item.recipe_nutrition?.carbohydrate ?? 0),
+        fat: Number(item.recipe_nutrition?.fat ?? 0),
+      },
+    }));
+
+    res.json({
+      page: Number(data?.recipes?.page_number ?? 0),
+      maxResults: Number(data?.recipes?.max_results ?? 10),
+      totalResults: Number(data?.recipes?.total_results ?? 0),
+      recipes,
+    });
+
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Recipe search error:', message);
@@ -214,42 +247,3 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
-// async function getValidFatSecretToken(): Promise<string> {
-//   if (fatSecretTokenCache && Date.now() < fatSecretTokenCache.expiresAt) {
-//     return fatSecretTokenCache.accessToken;
-//   }
-
-//   const credentials = Buffer.from(
-//     `${clientID}:${clientSecret}`
-//   ).toString('base64');
-
-//   const response = await fetch('https://oauth.fatsecret.com/connect/token', {
-//     method: 'POST',
-//     headers: {
-//       Authorization: `Basic ${credentials}`,
-//       'Content-Type': 'application/x-www-form-urlencoded',
-//     },
-//     body: new URLSearchParams({
-//       grant_type: 'client_credentials',
-//       scope: 'basic',
-//     }),
-//   });
-
-//   if (!response.ok) {
-//     const errorBody = await response.text();
-//     throw new Error(`OAuth failed (${response.status}): ${errorBody}`);
-//   }
-
-//   const data = (await response.json()) as {
-//     access_token: string;
-//     expires_in: number;
-//     token_type: string;
-//   };
-
-//   fatSecretTokenCache = {
-//     accessToken: data.access_token,
-//     expiresAt: Date.now() + (data.expires_in - 300) * 1000,
-//   };
-
-//   return fatSecretTokenCache.accessToken;
-// }
