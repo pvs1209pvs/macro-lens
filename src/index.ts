@@ -154,6 +154,8 @@ const supabaseAuthMiddleware = async (req: Request, res: Response, next: NextFun
 
 }
 
+// nutrition-goal
+
 app.get("/nutrition-goal", supabaseAuthMiddleware, async (req: Request, res: Response) => {
 
   const { data, error } = await req.supabase!.from("nutrition_goals").select("*").single();
@@ -167,6 +169,36 @@ app.get("/nutrition-goal", supabaseAuthMiddleware, async (req: Request, res: Res
 
 
 });
+
+
+app.post("/nutrition-goal", supabaseAuthMiddleware, async (req: Request, res: Response) => {
+  const { goal_type, daily_calorie_target, daily_protein_target } = req.body ?? {};
+
+  if (!['cut', 'maintain', 'bulk'].includes(goal_type)) {
+    res.status(400).json({ errro: "Invalid goal type. Must cut, bulk or maintain" });
+    return;
+  }
+
+  const { error } = await req.supabase!
+    .from("nutrition_goals")
+    .upsert({
+      user_id: req.user!.id,
+      goal_type,
+      daily_calorie_target: Math.round(daily_calorie_target),
+      daily_protein_target: Math.round(daily_protein_target),
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    res.status(400).json({ error: error.message, code: error.code });
+    return;
+  }
+
+  res.status(204).send();
+
+});
+
+// meal-logs
 
 app.get("/meal-logs", supabaseAuthMiddleware, async (req: Request, res: Response) => {
 
@@ -212,6 +244,8 @@ app.post("/meal-logs", supabaseAuthMiddleware, async (req: Request, res: Respons
   res.status(201).json({ saved: data });
 
 });
+
+// recipes
 
 app.get('/recipes', refreshFatSecretToken, async (req: Request, res: Response) => {
   try {
