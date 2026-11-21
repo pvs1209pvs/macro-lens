@@ -131,7 +131,7 @@ interface RecipePayload {
 }
 
 
-const supabaseAuthMiddlewar = async (req: Request, res: Response, next: NextFunction) => {
+const supabaseAuthMiddleware = async (req: Request, res: Response, next: NextFunction) => {
 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
@@ -154,23 +154,37 @@ const supabaseAuthMiddlewar = async (req: Request, res: Response, next: NextFunc
 
 }
 
-app.get("/meal-logs", supabaseAuthMiddlewar, async (req: Request, res: Response) => {
+app.get("/nutrition-goal", supabaseAuthMiddleware, async (req: Request, res: Response) => {
+
+  const { data, error } = await req.supabase!.from("nutrition_goals").select("*").single();
+
+  if (error) {
+    res.status(400).json({ error: error.message, code: error.code });
+    return;
+  }
+
+  res.status(200).json(data);
+
+
+});
+
+app.get("/meal-logs", supabaseAuthMiddleware, async (req: Request, res: Response) => {
 
   const { data, error } = await req.supabase!
     .from("meal_logs")
     .select("*")
     .order('created_at', { ascending: false });
 
-  if(error){
-    res.status(400).json({error:error.message,code:error.code});
+  if (error) {
+    res.status(400).json({ error: error.message, code: error.code });
     return;
   }
 
-  res.status(200).json({mealLogs:data});
+  res.status(200).json({ mealLogs: data });
 
 });
 
-app.post("/meal-logs", supabaseAuthMiddlewar, async (req: Request, res: Response) => {
+app.post("/meal-logs", supabaseAuthMiddleware, async (req: Request, res: Response) => {
 
   const recipes = req.body?.recipes as RecipePayload[];
   if (!Array.isArray(recipes) || recipes.length == 0) {
