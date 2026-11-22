@@ -65,5 +65,31 @@ export const saveMealLogs = async (req: Request, res: Response, next: NextFuncti
         next(error);
     }
 
-
 };
+
+
+export const updateMealLogs = async (req: Request, res: Response, next: NextFunction) => {
+
+    try {
+        if (!req.supabase) throw new AppError(403, "Unauthorized");
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id) throw new AppError(400, "Id missing");
+        const data = await mealLogService.update(req.supabase, id, req.body);
+        res.json(data);
+    } catch (err) {
+        next(err);
+    }
+
+}
+
+export const deleteMealLogs = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        if (!req.supabase) throw new AppError(403, "Unauthorized");
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id) throw new AppError(400, "Id missing");
+        await mealLogService.delete(req.supabase, id);
+        res.status(204).send();
+    } catch (err) {
+        next(err);
+    }
+}
