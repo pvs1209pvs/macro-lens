@@ -30,6 +30,7 @@ export const saveMealLogs = async (req: Request, res: Response, next: NextFuncti
         image: string | null;
         ingredients: string[];
         types: string[];
+        serving: number,
         nutrition: {
             calories: number;
             protein: number;
@@ -52,6 +53,7 @@ export const saveMealLogs = async (req: Request, res: Response, next: NextFuncti
         protein: item.nutrition.protein,
         carbs: item.nutrition.carbs,
         fat: item.nutrition.fat,
+        serving: item.serving,
     }));
 
 
