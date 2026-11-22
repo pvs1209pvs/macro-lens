@@ -23,7 +23,7 @@ const app = express();
 app.use(express.json());
 app.use("/nutrition-goal", nutritionGoalRouter);
 app.use("/meal-log", mealLogRouter);
-app.use('/api/fatsecret', fatSecretRouter);
+app.use('/fatsecret', fatSecretRouter);
 
 app.get('/health', (_req: Request, res: Response<String>) => {
   res.json("Hello world");
