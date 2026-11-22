@@ -6,6 +6,6 @@ const router = Router();
 
 router.use(supabaseAuthMiddleware);
 
-router.get('/history-trends', HistoryTrendController.getHistoryTrend);
+router.get('/', HistoryTrendController.getHistoryTrend);
 
 export default router;
