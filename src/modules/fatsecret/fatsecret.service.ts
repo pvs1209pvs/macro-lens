@@ -24,7 +24,7 @@ const toArray = <T>(value: T | T[] | undefined): T[] => {
 };
 
 export class FatSecretService {
-  
+
   async searchRecipes(params: SearchRecipesParams) {
     try {
       const response = await fatSecretClient.get('/rest/recipes/search/v3', {
@@ -57,6 +57,7 @@ export class FatSecretService {
           carbs: Number(item.recipe_nutrition?.carbohydrate ?? 0),
           fat: Number(item.recipe_nutrition?.fat ?? 0),
         },
+        serving: 1,
       }));
 
       return {

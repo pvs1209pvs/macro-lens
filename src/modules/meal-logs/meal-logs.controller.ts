@@ -18,9 +18,6 @@ export const getMealLogs = async (req: Request, res: Response, next: NextFunctio
     }
 
 
-
-    //   res.status(200).json({ mealLogs: data });
-
 };
 
 // app.post("/meal-logs", supabaseAuthMiddleware, async (req: Request, res: Response) => {
