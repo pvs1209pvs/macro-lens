@@ -1,8 +1,8 @@
 import 'dotenv/config'
 import express, { type Request, type Response } from 'express';
 import { SupabaseClient, type User } from '@supabase/supabase-js';
-import nutritionGoalRouter from "../src/modules/nutrition-goals/nutrition-goals.router.js";
-import mealLogRouter from "../src/modules/meal-logs/meal-logs.router.js";
+import nutritionGoalRouter from "./modules/nutrition-goals/nutrition-goals.router.js";
+import mealLogRouter from "./modules/meal-logs/meal-logs.router.js";
 import { globalErrorHandler } from './errors/app-error.js';
 import fatSecretRouter from './modules/fatsecret/fatsecret.router.js';
 import { config } from './config/env.js';
