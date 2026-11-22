@@ -18,21 +18,18 @@ export const getNutritionGoal = async (req: Request, res: Response, next: NextFu
 }
 
 export const saveNutritionGoal = async (req: Request, res: Response, next: NextFunction) => {
+    const { goal, daily_calorie_target, daily_protein_target } = req.body ?? {};
 
-
-    const { goal_type, daily_calorie_target, daily_protein_target } = req.body ?? {};
-
-    if (!['cut', 'maintain', 'bulk'].includes(goal_type)) {
-        res.status(400).json({ errro: "Invalid goal type. Must cut, bulk or maintain" });
+    if (!['cut', 'maintain', 'bulk'].includes(goal)) {
+        res.status(400).json({ error: "Invalid goal. Must be cut, bulk or maintain" });
         return;
     }
-
 
     try {
         if (!req.supabase) throw new Error("Not authed");
         const data = await nutritionGoalService.upsert(req.supabase, {
             user_id: req.user!.id,
-            goal_type,
+            goal,
             daily_calorie_target: Math.round(daily_calorie_target),
             daily_protein_target: Math.round(daily_protein_target),
             updated_at: new Date().toISOString(),
@@ -42,7 +39,6 @@ export const saveNutritionGoal = async (req: Request, res: Response, next: NextF
     catch (err) {
         next(err);
     }
-
 }
 
 
