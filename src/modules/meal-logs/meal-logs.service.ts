@@ -13,7 +13,7 @@ export class MealLogService {
     }
 
     async save(db: SupabaseClient, payload: any) {
-        const { data, error } = await db.from("meal_logs").insert(payload).select().single();
+        const { data, error } = await db.from("meal_logs").insert(payload).select();
         if (error) throw new AppError(500, error.message);
         return data;
     }

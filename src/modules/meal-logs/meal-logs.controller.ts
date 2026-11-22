@@ -30,13 +30,15 @@ export const saveMealLogs = async (req: Request, res: Response, next: NextFuncti
         image: string | null;
         ingredients: string[];
         types: string[];
-        serving: number,
+        serving: number;
+        goal: string; // <--- Add goal here
         nutrition: {
             calories: number;
             protein: number;
             carbs: number;
             fat: number;
         };
+
     }
 
     const recipes = req.body?.recipes as RecipePayload[];
@@ -54,12 +56,13 @@ export const saveMealLogs = async (req: Request, res: Response, next: NextFuncti
         carbs: item.nutrition.carbs,
         fat: item.nutrition.fat,
         serving: item.serving,
+        goal: item.goal,
     }));
 
 
     try {
         if (!req.supabase) throw new AppError(403, "Unauthorized");
-        const data = mealLogService.save(req.supabase, rows);
+        const data = await mealLogService.save(req.supabase, rows);
         res.json(data);
     } catch (error) {
         next(error);
