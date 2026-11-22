@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express, { type Request, type Response } from 'express';
 import { SupabaseClient, type User } from '@supabase/supabase-js';
 import nutritionGoalRouter from "./modules/nutrition-goals/nutrition-goals.router.js";
+import historyTrendsRouter from "./modules/history-trend/history-trend.routes.js";
 import mealLogRouter from "./modules/meal-logs/meal-logs.router.js";
 import { globalErrorHandler } from './errors/app-error.js';
 import fatSecretRouter from './modules/fatsecret/fatsecret.router.js';
@@ -21,8 +22,9 @@ const PORT = config.port || 3000;
 const app = express();
 
 app.use(express.json());
-app.use("/nutrition-goal", nutritionGoalRouter);
 app.use("/meal-logs", mealLogRouter);
+app.use('/history-trends', fatSecretRouter);
+app.use("/nutrition-goal", nutritionGoalRouter);
 app.use('/fatsecret', fatSecretRouter);
 
 app.get('/health', (_req: Request, res: Response<String>) => {
