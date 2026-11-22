@@ -23,7 +23,7 @@ const app = express();
 
 app.use(express.json());
 app.use("/meal-logs", mealLogRouter);
-app.use('/history-trends', fatSecretRouter);
+app.use('/history-trends', historyTrendsRouter);
 app.use("/nutrition-goal", nutritionGoalRouter);
 app.use('/fatsecret', fatSecretRouter);
 
